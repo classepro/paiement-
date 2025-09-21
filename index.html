@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paiement ClassePro</title>
+</head>
+<body>
+  <h1>Paiement ClassePro</h1>
+  <p>Montant : <strong>200 FCFA</strong></p>
+  <button id="payBtn">Payer maintenant</button>
+
+  <!-- SDK Paystack -->
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <script>
+    document.getElementById("payBtn").addEventListener("click", async () => {
+      // ⚠️ Mets ton vrai backend Render ici
+      const backendUrl = "https://classepro-backend.onrender.com";
+
+      // Exemple d'utilisateur (tu pourras remplacer par un vrai email saisi dans un formulaire)
+      const email = "client@example.com";
+      const amount = 200;
+
+      try {
+        // 1. On appelle ton backend pour créer la transaction
+        const res = await fetch(`${backendUrl}/create-payment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, amount })
+        });
+        const data = await res.json();
+
+        if (!data || !data.reference) {
+          alert("Erreur: Impossible de créer la transaction");
+          return;
+        }
+
+        // 2. On lance la fenêtre Paystack
+        var handler = PaystackPop.setup({
+          key: "pk_test_7b8c7b4c175d2a76f17dc3d449ff410d88dd5d89", // Clé publique
+          email: email,
+          amount: amount * 100, // en Kobo
+          currency: "XOF",
+          ref: data.reference, // référence générée par ton backend
+          callback: function(response) {
+            alert("Paiement terminé ✅ Référence: " + response.reference);
+            // Tu peux ici informer ton backend pour vérifier
+          },
+          onClose: function() {
+            alert("Fenêtre de paiement fermée ❌");
+          }
+        });
+        handler.openIframe();
+
+      } catch (err) {
+        console.error("Erreur :", err);
+        alert("Une erreur est survenue !");
+      }
+    });
+  </script>
+</body>
+</html>
