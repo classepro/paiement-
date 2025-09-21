@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Paiement ClassePro</title>
   <style>
     body {
@@ -17,12 +17,12 @@
     }
 
     .card {
-      background: #fff;
-      padding: 30px;
+      background: #ffffff;
+      padding: 30px 20px;
       border-radius: 12px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-      max-width: 420px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
       width: 100%;
+      max-width: 420px;
       text-align: center;
     }
 
@@ -34,17 +34,26 @@
     label {
       display: block;
       text-align: left;
+      margin-bottom: 6px;
       margin-top: 15px;
       font-weight: 600;
+      font-size: 14px;
     }
 
     input {
       width: 100%;
       padding: 12px;
-      margin-top: 6px;
+      margin-top: 4px;
       border: 1px solid #ccc;
       border-radius: 8px;
       font-size: 15px;
+      box-sizing: border-box;
+    }
+
+    input:focus {
+      border-color: #0072ff;
+      outline: none;
+      box-shadow: 0 0 4px rgba(0, 114, 255, 0.3);
     }
 
     button {
@@ -60,15 +69,19 @@
       cursor: pointer;
       position: relative;
       overflow: hidden;
-      transition: background 0.3s ease;
+      transition: background 0.3s ease, transform 0.1s ease;
     }
 
     button:hover {
       background: linear-gradient(135deg, #3a9bdc, #005ed6);
     }
 
+    button:active {
+      transform: scale(0.98);
+    }
+
     button.loading {
-      background: #0072ff;
+      background: #005ed6;
       pointer-events: none;
     }
 
@@ -95,17 +108,17 @@
     }
 
     .success { color: #28a745; }
-    .error { color: #dc3545; }
+    .error   { color: #dc3545; }
   </style>
 </head>
 <body>
   <div class="card">
     <h2>Paiement ClassePro</h2>
-    <label>Email</label>
-    <input type="email" id="email" placeholder="ex: client@gmail.com" value="test@example.com" required>
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="ex: client@example.com" value="test@example.com" required />
 
-    <label>Montant (FCFA)</label>
-    <input type="number" id="amount" placeholder="ex: 200" value="200" required>
+    <label for="amount">Montant (FCFA)</label>
+    <input type="number" id="amount" placeholder="200" value="200" required min="1" />
 
     <button id="payBtn">💳 Payer maintenant</button>
     <div class="status" id="status"></div>
@@ -115,18 +128,19 @@
   <script src="https://js.paystack.co/v1/inline.js"></script>
 
   <script>
-    const backendUrl = "https://backend-lmxf.onrender.com";
+    const backendUrl = "https://backend2-rcqi.onrender.com";
     const publicKey = "pk_test_7b8c7b4c175d2a76f17dc3d449ff410d88dd5d89";
 
     const payBtn = document.getElementById("payBtn");
     const statusDiv = document.getElementById("status");
 
     payBtn.addEventListener("click", async () => {
-      const email = document.getElementById("email").value;
-      const amount = document.getElementById("amount").value;
+      const email = document.getElementById("email").value.trim();
+      const amount = parseInt(document.getElementById("amount").value);
 
+      // Validation
       if (!email || !amount || amount <= 0) {
-        statusDiv.textContent = "⚠️ Veuillez entrer un email et un montant valides.";
+        statusDiv.textContent = "⚠️ Veuillez entrer un email valide et un montant positif.";
         statusDiv.className = "status error";
         return;
       }
@@ -137,7 +151,7 @@
       statusDiv.textContent = "";
 
       try {
-        // Initialiser paiement via backend
+        // Appel à ton backend pour initialiser le paiement
         const response = await fetch(`${backendUrl}/create-payment`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -146,40 +160,42 @@
 
         const data = await response.json();
 
-        if (!data.data || !data.data.authorization_url) {
-          throw new Error("Impossible d’obtenir l’URL de paiement Paystack.");
+        // Vérifier si la réponse contient la référence nécessaire
+        if (!data.data || !data.data.reference) {
+          throw new Error("Référence de paiement introuvable");
         }
 
-        // Ouvrir popup Paystack
+        // Ouvrir l'iframe / popup Paystack
         const handler = PaystackPop.setup({
           key: publicKey,
           email: email,
-          amount: amount * 100,
+          amount: amount * 100, // conversion en kobo
           currency: "XOF",
           ref: data.data.reference,
           callback: function(response) {
-            statusDiv.textContent = "✅ Paiement en cours de vérification...";
+            // Après le paiement, vérifier le statut côté backend
+            statusDiv.textContent = "🔍 Vérification en cours...";
             statusDiv.className = "status";
 
-            // Vérifier côté backend
             fetch(`${backendUrl}/verify-payment/${response.reference}`)
-              .then(res => res.json())
-              .then(result => {
-                if (result.data && result.data.status === "success") {
-                  statusDiv.textContent = "🎉 Paiement réussi !";
-                  statusDiv.className = "status success";
-                } else {
-                  statusDiv.textContent = "❌ Paiement non confirmé.";
-                  statusDiv.className = "status error";
-                }
-              })
-              .catch(() => {
-                statusDiv.textContent = "❌ Erreur lors de la vérification.";
+            .then(res => res.json())
+            .then(result => {
+              if (result.data && result.data.status === "success") {
+                statusDiv.textContent = "🎉 Paiement réussi !";
+                statusDiv.className = "status success";
+              } else {
+                statusDiv.textContent = "❌ Paiement non confirmé.";
                 statusDiv.className = "status error";
-              });
+              }
+            })
+            .catch(err => {
+              console.error("Erreur vérification:", err);
+              statusDiv.textContent = "❌ Erreur lors de la vérification.";
+              statusDiv.className = "status error";
+            });
           },
           onClose: function() {
-            statusDiv.textContent = "❌ Fenêtre de paiement fermée.";
+            statusDiv.textContent = "❌ Paiement annulé.";
             statusDiv.className = "status error";
           }
         });
@@ -187,10 +203,10 @@
         handler.openIframe();
 
       } catch (error) {
-        statusDiv.textContent = "❌ Erreur: " + error.message;
+        statusDiv.textContent = "❌ Erreur : " + error.message;
         statusDiv.className = "status error";
       } finally {
-        // Réinitialiser bouton
+        // Réinitialiser bouton initial
         payBtn.classList.remove("loading");
         payBtn.innerHTML = "💳 Payer maintenant";
       }
