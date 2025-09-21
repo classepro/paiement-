@@ -4,25 +4,69 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Paiement ClassePro</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 50px;
+      background: #f4f6f9;
+    }
+    h1 {
+      color: #333;
+    }
+    button {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #218838;
+    }
+    button:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(255, 255, 255, 0.6);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+      margin-left: 10px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
   <h1>Paiement ClassePro</h1>
   <p>Montant : <strong>200 FCFA</strong></p>
-  <button id="payBtn">Payer maintenant</button>
+  <button id="payBtn">💳 Payer maintenant</button>
 
   <!-- SDK Paystack -->
   <script src="https://js.paystack.co/v1/inline.js"></script>
   <script>
-    document.getElementById("payBtn").addEventListener("click", async () => {
-      // ⚠️ Mets ton vrai backend Render ici
-      const backendUrl = "https://classepro-backend.onrender.com";
+    const payBtn = document.getElementById("payBtn");
+    const backendUrl = "https://serveur-backend-mhuc.onrender.com"; // ton backend Render
 
-      // Exemple d'utilisateur (tu pourras remplacer par un vrai email saisi dans un formulaire)
-      const email = "client@example.com";
+    payBtn.addEventListener("click", async () => {
+      const email = "client@example.com"; // à remplacer par l’email de ton utilisateur
       const amount = 200;
 
+      // Animation bouton
+      payBtn.disabled = true;
+      payBtn.innerHTML = "⏳ Initialisation..." + '<span class="spinner"></span>';
+
       try {
-        // 1. On appelle ton backend pour créer la transaction
+        // 1. Appel à ton backend pour créer la transaction
         const res = await fetch(`${backendUrl}/create-payment`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -31,30 +75,36 @@
         const data = await res.json();
 
         if (!data || !data.reference) {
-          alert("Erreur: Impossible de créer la transaction");
+          alert("❌ Erreur: Impossible de créer la transaction");
+          payBtn.disabled = false;
+          payBtn.innerHTML = "💳 Payer maintenant";
           return;
         }
 
-        // 2. On lance la fenêtre Paystack
+        // 2. Lancer la fenêtre Paystack
         var handler = PaystackPop.setup({
-          key: "pk_test_7b8c7b4c175d2a76f17dc3d449ff410d88dd5d89", // Clé publique
+          key: "pk_test_7b8c7b4c175d2a76f17dc3d449ff410d88dd5d89", // ta clé publique
           email: email,
-          amount: amount * 100, // en Kobo
+          amount: amount * 100,
           currency: "XOF",
-          ref: data.reference, // référence générée par ton backend
+          ref: data.reference,
           callback: function(response) {
-            alert("Paiement terminé ✅ Référence: " + response.reference);
-            // Tu peux ici informer ton backend pour vérifier
+            alert("✅ Paiement terminé ! Référence: " + response.reference);
+            // Ici tu pourrais appeler ton backend pour vérifier la transaction
           },
           onClose: function() {
-            alert("Fenêtre de paiement fermée ❌");
+            alert("❌ Fenêtre de paiement fermée");
           }
         });
         handler.openIframe();
 
       } catch (err) {
-        console.error("Erreur :", err);
-        alert("Une erreur est survenue !");
+        console.error("Erreur:", err);
+        alert("⚠️ Une erreur est survenue !");
+      } finally {
+        // Réactiver le bouton après l’action
+        payBtn.disabled = false;
+        payBtn.innerHTML = "💳 Payer maintenant";
       }
     });
   </script>
